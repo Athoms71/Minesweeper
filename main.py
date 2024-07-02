@@ -107,10 +107,5 @@ while running:
     draw_grid(screen, revealed)
     pygame.display.flip()
 
-game_over_text = font.render("Game Over !", True, BLACK, RED)
-game_over_rect = game_over_text.get_rect(
-    center=(WIDTH//2, HEIGHT//2))
-screen.blit(game_over_text, (0, 0))
-pygame.time.delay(1000)
 pygame.quit()
 sys.exit()
