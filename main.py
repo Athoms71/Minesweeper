@@ -59,6 +59,8 @@ def draw_grid(screen, revealed):
                     if count > 0:
                         text = font.render(str(count), True, BLUE)
                         screen.blit(text, text.get_rect(center=rect.center))
+            elif flagged[row, col]:
+                pygame.draw.circle(screen, GREEN, rect.center, CELL_SIZE // 4)
 
 
 DIM = 10
@@ -69,6 +71,7 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
 RED = (255, 0, 0)
+GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 
 pygame.init()
@@ -79,6 +82,7 @@ minefield = create_minefield(DIM, NUM_MINES)
 print(minefield)
 minefield_count = create_adjacent_count_minefield(minefield)
 revealed = np.zeros((DIM, DIM), dtype=bool)
+flagged = np.zeros((DIM, DIM), dtype=bool)
 
 # Boucle principale du jeu
 running = True
@@ -93,9 +97,12 @@ while running:
                 reveal_cell(revealed, minefield_count, row, col)
                 if minefield[row, col] == -1:
                     running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 2:
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             x, y = event.pos
             row, col = y // CELL_SIZE, x // CELL_SIZE
+            if not revealed[row, col]:
+                flagged[row, col] = not flagged[row, col]
+
     screen.fill(WHITE)
     draw_grid(screen, revealed)
     pygame.display.flip()
