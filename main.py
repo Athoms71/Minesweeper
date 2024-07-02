@@ -34,7 +34,7 @@ def count_adjacent_mines(field, row, col):
 
 
 def reveal_cell(revealed, minefield, row, col):
-    if not revealed[row, col]:
+    if not revealed[row, col] and not flagged[row, col]:
         revealed[row, col] = True
         if minefield[row, col] == 0:
             for r in range(max(0, row-1), min(DIM, row+2)):
