@@ -57,7 +57,7 @@ def check_end(revealed):
     return False
 
 
-def display_timer(revealed: np.ndarray, dim):
+def update_timer(revealed: np.ndarray, dim):
     if revealed.any():
         time = (pygame.time.get_ticks() - t0)//1000
     else:
@@ -67,6 +67,13 @@ def display_timer(revealed: np.ndarray, dim):
     timer_rect.right = black_bg.left + 60-4
     timer_rect.top = black_bg.top + 2
     screen.blit(timer, timer_rect)
+
+
+def update_mines_left(flagged, row, col):
+    if flagged[row, col]:
+        return 1
+    else:
+        return -1
 
 
 def draw_grid(screen: pygame.Surface, revealed: np.ndarray):
@@ -131,6 +138,7 @@ pygame.display.set_caption("Minesweeper")
 pygame.display.set_icon(icon)
 font = pygame.font.Font(None, 33)
 first_click = True
+count_mines_left = NUM_MINES
 
 minefield = create_minefield(DIM, NUM_MINES)
 print(minefield)
@@ -140,11 +148,6 @@ flagged = np.zeros((DIM, DIM), dtype=bool)
 
 black_bg = pygame.rect.Rect(25, 25, WIDTH - 50, 24)
 white_bg = pygame.rect.Rect(85, 25, WIDTH-50-120, 24)
-mines_left = font.render("0", True, RED)
-mines_left_rect = mines_left.get_rect()
-mines_left_rect.left = black_bg.left + \
-    black_bg.w - mines_left_rect.w-5
-mines_left_rect.top = black_bg.top + 2
 
 
 # Boucle principale du jeu
@@ -165,12 +168,23 @@ while running and not check_end(revealed):
                     if minefield[row, col] == -1:
                         running = False
                 elif event.button == 3 and not revealed[row, col]:
-                    flagged[row, col] = not flagged[row, col]
+                    count_mines_left += update_mines_left(flagged, row, col)
+                    if count_mines_left > 0:
+                        flagged[row, col] = not flagged[row, col]
+                    elif count_mines_left == 0:
+                        flagged[row, col] = not flagged[row, col]
+                    elif count_mines_left < 0:
+                        count_mines_left = 0
+
     screen.fill(WHITE)
     pygame.draw.rect(screen, BLACK, black_bg)
-    screen.blit(mines_left, mines_left_rect)
-    display_timer(revealed, DIM)
     pygame.draw.rect(screen, WHITE, white_bg)
+    mines_left = font.render(str(count_mines_left), True, RED)
+    mines_left_rect = mines_left.get_rect()
+    mines_left_rect.left = black_bg.left + black_bg.w - mines_left_rect.w-4
+    mines_left_rect.top = black_bg.top + 2
+    screen.blit(mines_left, mines_left_rect)
+    update_timer(revealed, DIM)
     draw_grid(screen, revealed)
     pygame.display.flip()
 
