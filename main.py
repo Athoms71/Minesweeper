@@ -72,6 +72,12 @@ def check_end(revealed: np.ndarray):
             if revealed[r, c]:
                 count_cells_revealed += 1
     if count_cells_revealed == DIM**2-NUM_MINES:
+        pygame.draw.rect(screen, BLACK, win_rect_bg, 0, 25)
+        screen.blit(win, win_rect)
+        pygame.display.update()
+        pygame.mixer_music.stop()
+        win_sound.play()
+        pygame.time.wait(3000)
         return True
     return False
 
@@ -167,6 +173,8 @@ pygame.mixer_music.set_volume(0.5)
 pygame.mixer_music.play(-1)
 game_over = pygame.mixer.Sound("./Ressources/game_over.mp3")
 game_over.set_volume(0.5)
+win_sound = pygame.mixer.Sound("./Ressources/win.mp3")
+win_sound.set_volume(0.5)
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 icon = pygame.image.load("./Ressources/logo.png")
@@ -209,6 +217,11 @@ go_rect = go.get_rect()
 go_rect.left = go_rect_bg.left + (go_rect_bg.w - go_rect.w)//2
 go_rect.top = go_rect_bg.top + (go_rect_bg.h - go_rect.h)//2
 
+win = font.render("Good job !", True, LIME)
+win_rect_bg = pygame.rect.Rect(WIDTH//4, HEIGHT//2-25, WIDTH//2, 50)
+win_rect = win.get_rect()
+win_rect.left = win_rect_bg.left + (win_rect_bg.w - win_rect.w)//2
+win_rect.top = win_rect_bg.top + (win_rect_bg.h - win_rect.h)//2
 
 # Boucle principale du jeu
 running = True
