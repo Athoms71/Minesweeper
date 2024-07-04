@@ -46,12 +46,35 @@ def reveal_cell(revealed: np.ndarray, minefield: np.ndarray, row: int, col: int)
                     reveal_cell(revealed, minefield, r, c)
 
 
+def check_end(revealed):
+    count_cells_revealed = 0
+    for r in range(DIM):
+        for c in range(DIM):
+            if revealed[r, c]:
+                count_cells_revealed += 1
+    if count_cells_revealed == DIM**2-NUM_MINES:
+        return True
+    return False
+
+
+def display_timer(revealed: np.ndarray, dim):
+    if revealed.any():
+        time = (pygame.time.get_ticks() - t0)//1000
+    else:
+        time = 0
+    timer = font.render(str(time), True, RED)
+    timer_rect = timer.get_rect()
+    timer_rect.right = black_bg.left + 60-4
+    timer_rect.top = black_bg.top + 2
+    screen.blit(timer, timer_rect)
+
+
 def draw_grid(screen: pygame.Surface, revealed: np.ndarray):
     '''Draw minefield grid and numbers'''
     for row in range(DIM):
         for col in range(DIM):
-            rect = pygame.Rect(col * CELL_SIZE, row *
-                               CELL_SIZE, CELL_SIZE, CELL_SIZE)
+            rect = pygame.Rect(col * CELL_SIZE+25, row *
+                               CELL_SIZE+175, CELL_SIZE, CELL_SIZE)
             pygame.draw.rect(
                 screen, GRAY if revealed[row, col] else WHITE, rect)
             pygame.draw.rect(screen, BLACK, rect, 1)
@@ -87,7 +110,7 @@ def draw_grid(screen: pygame.Surface, revealed: np.ndarray):
 DIM = 10
 NUM_MINES = 15
 CELL_SIZE = 40
-WIDTH, HEIGHT = DIM * CELL_SIZE, DIM * CELL_SIZE
+WIDTH, HEIGHT = DIM * CELL_SIZE+50, DIM * CELL_SIZE+200
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
@@ -106,7 +129,8 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 icon = pygame.image.load("./Ressources/logo.png")
 pygame.display.set_caption("Minesweeper")
 pygame.display.set_icon(icon)
-font = pygame.font.Font(None, 30)
+font = pygame.font.Font(None, 33)
+first_click = True
 
 minefield = create_minefield(DIM, NUM_MINES)
 print(minefield)
@@ -114,28 +138,46 @@ minefield_count = create_adjacent_count_minefield(minefield)
 revealed = np.zeros((DIM, DIM), dtype=bool)
 flagged = np.zeros((DIM, DIM), dtype=bool)
 
+black_bg = pygame.rect.Rect(25, 25, WIDTH - 50, 24)
+white_bg = pygame.rect.Rect(85, 25, WIDTH-50-120, 24)
+mines_left = font.render("0", True, RED)
+mines_left_rect = mines_left.get_rect()
+mines_left_rect.left = black_bg.left + \
+    black_bg.w - mines_left_rect.w-5
+mines_left_rect.top = black_bg.top + 2
+
+
 # Boucle principale du jeu
 running = True
-while running:
+while running and not check_end(revealed):
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        elif event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
-            row, col = y // CELL_SIZE, x // CELL_SIZE
-            if not revealed[row, col] and not flagged[row, col]:
-                reveal_cell(revealed, minefield_count, row, col)
-                if minefield[row, col] == -1:
-                    running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
-            x, y = event.pos
-            row, col = y // CELL_SIZE, x // CELL_SIZE
-            if not revealed[row, col]:
-                flagged[row, col] = not flagged[row, col]
-
+            row, col = (y-175) // CELL_SIZE, (x-25) // CELL_SIZE
+            if row >= 0 and row < DIM and col >= 0 and col < DIM:
+                if first_click:
+                    t0 = pygame.time.get_ticks()
+                    first_click = False
+                if event.button == 1 and not revealed[row, col] and not flagged[row, col]:
+                    reveal_cell(revealed, minefield_count, row, col)
+                    if minefield[row, col] == -1:
+                        running = False
+                elif event.button == 3 and not revealed[row, col]:
+                    flagged[row, col] = not flagged[row, col]
     screen.fill(WHITE)
+    pygame.draw.rect(screen, BLACK, black_bg)
+    screen.blit(mines_left, mines_left_rect)
+    display_timer(revealed, DIM)
+    pygame.draw.rect(screen, WHITE, white_bg)
     draw_grid(screen, revealed)
     pygame.display.flip()
+
+if check_end(revealed):
+    print("Vous avez gagné !")
+else:
+    print("Perdu...")
 
 pygame.quit()
 sys.exit()
