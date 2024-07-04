@@ -13,13 +13,15 @@ GRAY = (200, 200, 200)
 RED = (255, 0, 0)
 LIME = (0, 255, 0)
 BLUE = (0, 0, 255)
+YELLOW = (255, 255, 0)
 MAROON = (128, 0, 0)
 GREEN = (0, 128, 0)
 NAVY = (0, 0, 128)
 TEAL = (0, 128, 128)
 PINK = (255, 0, 255)
 DARK_GRAY = (128, 128, 128)
-DIFFICULTY = 1  # 0 : easy | 1 : medium | 2 : hard
+DIFFICULTY = {"Easy": 0, "Medium": 1, "Hard": 2}
+CURRENT_DIFFICULTY = 1
 
 
 def create_minefield(dim: int = DIM, num_mines: int = NUM_MINES):
@@ -93,7 +95,7 @@ def update_mines_left(flagged: np.ndarray, row: int = DIM, col: int = DIM):
         return -1
 
 
-def update_dificulty(code: int, dif: int):
+def update_difficulty(code: int, dif: int):
     if (code == 1 and dif == 0) or (code == -1 and dif == 2):
         return 1
     elif code == -1:
@@ -102,14 +104,21 @@ def update_dificulty(code: int, dif: int):
         return 2
 
 
-def reset():
+def reset(code: int = 0):
+    if code == 1:   # Reprise de partie après défaite
+        pygame.mixer_music.play(-1)
     first_click = True
     count_mines_left = NUM_MINES
     minefield = create_minefield(DIM, NUM_MINES)
     minefield_count = create_adjacent_count_minefield(minefield)
     revealed = np.zeros((DIM, DIM), dtype=bool)
     flagged = np.zeros((DIM, DIM), dtype=bool)
-    return first_click, count_mines_left, minefield, minefield_count, revealed, flagged
+    diff = [k for (k, val) in DIFFICULTY.items() if val == CURRENT_DIFFICULTY]
+    diff = font.render(diff[0], True, BLACK)
+    diff_rect = diff.get_rect()
+    diff_rect.left = (WIDTH-diff_rect.w)//2
+    diff_rect.top = 125
+    return first_click, count_mines_left, minefield, minefield_count, revealed, flagged, diff, diff_rect
 
 
 def draw_grid(screen: pygame.Surface, revealed: np.ndarray):
@@ -151,6 +160,14 @@ def draw_grid(screen: pygame.Surface, revealed: np.ndarray):
 
 
 pygame.init()
+
+pygame.mixer.init()
+pygame.mixer_music.load("./Ressources/Jaunter-TheSearch.mp3")
+pygame.mixer_music.set_volume(0.5)
+pygame.mixer_music.play(-1)
+game_over = pygame.mixer.Sound("./Ressources/game_over.mp3")
+game_over.set_volume(0.5)
+
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 icon = pygame.image.load("./Ressources/logo.png")
 pygame.display.set_caption("Minesweeper")
@@ -178,6 +195,21 @@ left_arrow_rect = left_arrow.get_rect()
 left_arrow_rect.left = 50
 left_arrow_rect.top = 125
 
+diff = [k for (k, val) in DIFFICULTY.items() if val == CURRENT_DIFFICULTY]
+diff = font.render(diff[0], True, BLACK)
+diff_rect = diff.get_rect()
+diff_rect.left = (WIDTH-diff_rect.w)//2
+diff_rect.top = 125
+
+reset_game = pygame.rect.Rect(WIDTH//2-25, 50, 50, 50)
+
+go = font.render("Game Over !", True, RED)
+go_rect_bg = pygame.rect.Rect(WIDTH//4, HEIGHT//2-25, WIDTH//2, 50)
+go_rect = go.get_rect()
+go_rect.left = go_rect_bg.left + (go_rect_bg.w - go_rect.w)//2
+go_rect.top = go_rect_bg.top + (go_rect_bg.h - go_rect.h)//2
+
+
 # Boucle principale du jeu
 running = True
 while running and not check_end(revealed):
@@ -187,29 +219,46 @@ while running and not check_end(revealed):
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
-            previous_diff = DIFFICULTY
+            previous_diff = CURRENT_DIFFICULTY
             row, col = (y-175) // CELL_SIZE, (x-25) // CELL_SIZE
-            if left_arrow_rect.collidepoint(x, y):
-                DIFFICULTY = update_dificulty(-1, DIFFICULTY)
-            if right_arrow_rect.collidepoint(x, y):
-                DIFFICULTY = update_dificulty(1, DIFFICULTY)
-            if DIFFICULTY != previous_diff:
-                match DIFFICULTY:
+            if reset_game.collidepoint(x, y):
+                first_click, count_mines_left, minefield, minefield_count, revealed, flagged, diff, diff_rect = reset()
+            elif left_arrow_rect.collidepoint(x, y):
+                CURRENT_DIFFICULTY = update_difficulty(-1, CURRENT_DIFFICULTY)
+            elif right_arrow_rect.collidepoint(x, y):
+                CURRENT_DIFFICULTY = update_difficulty(1, CURRENT_DIFFICULTY)
+            if CURRENT_DIFFICULTY != previous_diff:
+                match CURRENT_DIFFICULTY:
                     case 0:
                         NUM_MINES = 15
                     case 1:
                         NUM_MINES = 20
                     case 2:
                         NUM_MINES = 30
-                first_click, count_mines_left, minefield, minefield_count, revealed, flagged = reset()
+                first_click, count_mines_left, minefield, minefield_count, revealed, flagged, diff, diff_rect = reset()
             if row >= 0 and row < DIM and col >= 0 and col < DIM:
                 if first_click:
                     t0 = pygame.time.get_ticks()
                     first_click = False
                 if event.button == 1 and not revealed[row, col] and not flagged[row, col]:
                     reveal_cell(revealed, minefield_count, row, col)
+                    draw_grid(screen, revealed)
                     if minefield[row, col] == -1:
-                        running = False
+                        pygame.mixer_music.stop()
+                        game_over.play()
+                        while not reset_game.collidepoint(x, y):
+                            pygame.draw.rect(screen, BLACK, go_rect_bg, 0, 25)
+                            screen.blit(go, go_rect)
+                            events = pygame.event.get()
+                            for event in events:
+                                if event.type == QUIT:
+                                    running = False
+                                    quit()
+                                if event.type == MOUSEBUTTONDOWN and event.button == 1:
+                                    x, y = event.pos
+                            pygame.display.update()
+                        first_click, count_mines_left, minefield, minefield_count, revealed, flagged, diff, diff_rect = reset(
+                            1)
                 elif event.button == 3 and not revealed[row, col]:
                     count_mines_left += update_mines_left(flagged, row, col)
                     if count_mines_left > 0:
@@ -222,6 +271,8 @@ while running and not check_end(revealed):
     screen.fill(WHITE)
     pygame.draw.rect(screen, BLACK, black_bg)
     pygame.draw.rect(screen, WHITE, white_bg)
+    pygame.draw.rect(screen, GRAY, reset_game, 0, 25)
+    pygame.draw.circle(screen, YELLOW, reset_game.center, 50//2.7)
     mines_left = font.render(str(count_mines_left), True, RED)
     mines_left_rect = mines_left.get_rect()
     mines_left_rect.left = black_bg.left + black_bg.w - mines_left_rect.w-4
@@ -229,11 +280,7 @@ while running and not check_end(revealed):
     screen.blit(mines_left, mines_left_rect)
     screen.blit(right_arrow, right_arrow_rect)
     screen.blit(left_arrow, left_arrow_rect)
+    screen.blit(diff, diff_rect)
     update_timer(revealed)
     draw_grid(screen, revealed)
     pygame.display.flip()
-
-if check_end(revealed):
-    print("Vous avez gagné !")
-else:
-    print("Perdu...")
